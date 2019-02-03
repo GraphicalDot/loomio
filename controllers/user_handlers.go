@@ -190,6 +190,9 @@ func AddUser(dbSession config.Database, user *models.User) (string, error) {
 		log.Println(err)
 		return "", err
 	}
+
+	AddSecondaryIndex(dbSession, user.Username, user.Email)
+
 	return user.UserID, nil
 }
 
