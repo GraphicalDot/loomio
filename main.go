@@ -48,6 +48,10 @@ func main() {
 	r.Methods("GET").Path("/user/{id:[0-9a-zA-Z-]+}").Name("GetUser").Handler(GetUserContextHandler)
 	r.Use(loggingMiddleware)
 
+	GetUserEmailContextHandler := &config.ContextHandler{&context, controllers.GetUserEmailHandler}
+	r.Methods("GET").Path("/user/email/{email:[a-zA-Z@.]+}").Name("GetUser").Handler(GetUserEmailContextHandler)
+	r.Use(loggingMiddleware)
+
 	fmt.Println("Here you go")
 	allowedOrigins := handlers.AllowedOrigins([]string{"*"})
 	allowedMethods := handlers.AllowedMethods([]string{"GET", "POST", "DELETE", "PUT"})
