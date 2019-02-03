@@ -1,0 +1,5 @@
+{
+    "LevelDB": {
+        "PATH": "leveldbfile"
+    }
+}
