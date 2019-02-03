@@ -52,22 +52,18 @@ func AddSecondaryIndex(dbSession config.Database, userid string, email string) e
 	return nil
 }
 
-func RetreiveSecondaryIndex(dbSession config.Database, email string) error {
+func RetreiveSecondaryIndex(dbSession config.Database, email string) bool {
 	secondaryIndex := map[string]string{}
-	data, err := dbSession.DBSession.Get([]byte("secondaryIndex"), nil)
-	if err != nil {
-		fmt.Println("Failed to retrieve results:", err)
-		return err
-	}
-
+	data, _ := dbSession.DBSession.Get([]byte("secondaryIndex"), nil)
 	reader := bytes.NewReader(data)
 	// make a decoder
 	decoder := gob.NewDecoder(reader)
 	// decode it int
 
-	decoder.Decode(secondaryIndex)
+	decoder.Decode(&secondaryIndex)
 
-	userid := secondaryIndex[email]
-	fmt.Println(userid)
-	return nil
+	userid, ok := secondaryIndex[email]
+	log.Println("This is the email to be found in secondary index", userid)
+
+	return ok
 }

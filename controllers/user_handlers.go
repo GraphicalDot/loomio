@@ -150,18 +150,18 @@ func AddUserHandler(appContext *config.AppContext, w http.ResponseWriter, r *htt
 
 	fmt.Println(user)
 	uid, err := AddUser(appContext.Database, &user)
-	fmt.Println(err)
-	fmt.Println(uid)
+
+	result := config.AppResponse{Message: fmt.Sprintf("%v", err), Success: false, Error: true}
 
 	if err != nil {
-		json.NewEncoder(w).Encode(`{message: fmt.Sprintf("%v", err), error: true, success:false}`)
+		json.NewEncoder(w).Encode(result)
 		return http.StatusUnauthorized, nil
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	result := config.AppResponse{Message: fmt.Sprintf("%v", uid), Success: true, Error: false}
+	result = config.AppResponse{Message: fmt.Sprintf("%v", uid), Success: true, Error: false}
 
 	// In the future we could report back on the status of our DB, or our cache
 	// (e.g. Redis) by performing a simple PING, and include them in the response.
@@ -173,6 +173,13 @@ func AddUser(dbSession config.Database, user *models.User) (string, error) {
 
 	user_id := uuid.NewV4()
 	user.UserID = user_id.String()
+	ok := RetreiveSecondaryIndex(dbSession, user.Email)
+	if ok {
+		log.Println("This is the user id found in secondary index", ok)
+		return "", errors.New("The email is already registered")
+
+	}
+
 	var network bytes.Buffer // Stand-in for a network connection
 	enc := gob.NewEncoder(&network)
 
@@ -203,17 +210,6 @@ func FindUser(userCollection *mgo.Collection, email string, password string) boo
 
 	if dberr != nil {
 		log.Fatal(dberr)
-		return false
-	}
-	return true
-}
-
-// UpdateAlbum updates an Album in the DB (not used for now)
-func UpdateAlbum(userCollection *mgo.Collection, user models.User) bool {
-	dberr := userCollection.UpdateId(user.UserID, user)
-
-	if dberr != nil {
-		log.Println(dberr)
 		return false
 	}
 	return true
