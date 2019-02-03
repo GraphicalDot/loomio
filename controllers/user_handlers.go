@@ -26,26 +26,34 @@ func GetUserHandler(appContext *config.AppContext, w http.ResponseWriter, r *htt
 	}()
 	uid := mux.Vars(r)["id"]
 	log.Printf("This is the id %v", uid)
+	var user models.User
 
-	getUser(&appContext.Database, uid)
+	getUser(&appContext.Database, uid, &user)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
 	// In the future we could report back on the status of our DB, or our cache
 	// (e.g. Redis) by performing a simple PING, and include them in the response.
-	json.NewEncoder(w).Encode(`{"success": true, error: false}`)
+
+	result := config.AppResponse{Message: fmt.Sprintf("%v", user), Success: true, Error: false}
+	json.NewEncoder(w).Encode(result)
 	return http.StatusOK, nil
 }
 
-func getUser(dbSession *config.Database, key string) error {
+func getUser(dbSession *config.Database, key string, user *models.User) error {
 	data, err := dbSession.DBSession.Get([]byte(key), nil)
 	if err != nil {
 		fmt.Println("Failed to retrieve results:", err)
 		return err
 	}
-	fmt.Printf("Failed to retrieve results:%v", data)
 
+	reader := bytes.NewReader(data)
+	// make a decoder
+	decoder := gob.NewDecoder(reader)
+	// decode it int
+
+	decoder.Decode(&user)
 	return nil
 }
 
@@ -80,8 +88,9 @@ func AddUserHandler(appContext *config.AppContext, w http.ResponseWriter, r *htt
 	}
 
 	fmt.Println(user)
-	err = AddUser(appContext.Database, &user)
+	uid, err := AddUser(appContext.Database, &user)
 	fmt.Println(err)
+	fmt.Println(uid)
 
 	if err != nil {
 		json.NewEncoder(w).Encode(`{message: fmt.Sprintf("%v", err), error: true, success:false}`)
@@ -91,13 +100,15 @@ func AddUserHandler(appContext *config.AppContext, w http.ResponseWriter, r *htt
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
+	result := config.AppResponse{Message: fmt.Sprintf("%v", uid), Success: true, Error: false}
+
 	// In the future we could report back on the status of our DB, or our cache
 	// (e.g. Redis) by performing a simple PING, and include them in the response.
-	json.NewEncoder(w).Encode(`{"success": true, error: false}`)
+	json.NewEncoder(w).Encode(result)
 	return http.StatusOK, nil
 }
 
-func AddUser(dbSession config.Database, user *models.User) error {
+func AddUser(dbSession config.Database, user *models.User) (string, error) {
 
 	user_id := uuid.NewV4()
 	user.UserID = user_id.String()
@@ -107,6 +118,7 @@ func AddUser(dbSession config.Database, user *models.User) error {
 	err := enc.Encode(user)
 	if err != nil {
 		log.Println("Error in encoding gob")
+		return "", err
 	}
 
 	log.Printf("This is the user %v", user)
@@ -115,9 +127,9 @@ func AddUser(dbSession config.Database, user *models.User) error {
 	fmt.Println(err)
 	if err != nil {
 		log.Println(err)
-		return err
+		return "", err
 	}
-	return nil
+	return user.UserID, nil
 }
 
 func FindUser(userCollection *mgo.Collection, email string, password string) bool {
